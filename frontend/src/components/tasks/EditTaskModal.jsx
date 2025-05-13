@@ -1,9 +1,14 @@
-// src/components/tasks/EditTaskModal.jsx - Fixed project selection
+// src/components/tasks/EditTaskModal.jsx
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import Swal from 'sweetalert2';
 
 function EditTaskModal({ task, onClose, onUpdateTask, projects = [] }) {
+  const { currentUser } = useAuth();
+  const { isDarkMode } = useTheme();
+  
   // Convert projectId to string if it's an object
   const initialProjectId = task.projectId?._id || task.projectId || '';
   
@@ -27,18 +32,10 @@ function EditTaskModal({ task, onClose, onUpdateTask, projects = [] }) {
     return date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
   }
 
-  // For debugging
-  useEffect(() => {
-    console.log("Task projectId:", task.projectId);
-    console.log("Initial project ID:", initialProjectId);
-    console.log("Selected project ID:", selectedProjectId);
-    console.log("Available projects:", projects.map(p => ({ id: p._id, title: p.title })));
-  }, []);
-
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('token') || sessionStorage.getItem('token');
         
         // Get project end date
         if (selectedProjectId) {
@@ -49,33 +46,34 @@ function EditTaskModal({ task, onClose, onUpdateTask, projects = [] }) {
           
           if (project) {
             setProjectEndDate(project.endDate);
-            console.log("Found project:", project.title);
           } else {
-            console.log("Project not found in array, fetching from API");
             try {
               // If not found locally, fetch from API
               const projectRes = await axios.get(`http://localhost:5000/api/projects/${selectedProjectId}`, {
                 headers: { Authorization: `Bearer ${token}` }
               });
               setProjectEndDate(projectRes.data.endDate);
-              console.log("Fetched project:", projectRes.data.title);
             } catch (err) {
               console.error('Error fetching project details:', err);
             }
           }
         }
         
-        // Fetch student options
-        const studentsRes = await axios.get('http://localhost:5000/api/users/students', {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        setStudentOptions(studentsRes.data);
+        // Fetch student options (only needed for admin)
+        if (currentUser.role === 'admin') {
+          const studentsRes = await axios.get('http://localhost:5000/api/users/students', {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          setStudentOptions(studentsRes.data);
+        }
       } catch (error) {
         console.error('Error fetching data:', error);
         Swal.fire({
           icon: 'error',
           title: 'Error',
           text: 'Failed to load data. Please try again.',
+          background: isDarkMode ? '#1f2937' : '#ffffff',
+          color: isDarkMode ? '#f9fafb' : '#111827'
         });
       } finally {
         setLoading(false);
@@ -83,18 +81,16 @@ function EditTaskModal({ task, onClose, onUpdateTask, projects = [] }) {
     };
 
     fetchData();
-  }, [selectedProjectId, projects]);
+  }, [selectedProjectId, projects, isDarkMode, currentUser.role]);
 
   const handleProjectChange = (e) => {
     const newProjectId = e.target.value;
-    console.log("Project changed to:", newProjectId);
     setSelectedProjectId(newProjectId);
     
     // Update project end date
     const project = projects.find(p => p._id.toString() === newProjectId.toString());
     if (project) {
       setProjectEndDate(project.endDate);
-      console.log("Updated project end date:", project.endDate);
     }
   };
 
@@ -119,6 +115,8 @@ function EditTaskModal({ task, onClose, onUpdateTask, projects = [] }) {
         icon: 'error',
         title: 'Invalid Date',
         text: 'Task due date cannot be after project end date.',
+        background: isDarkMode ? '#1f2937' : '#ffffff',
+        color: isDarkMode ? '#f9fafb' : '#111827'
       });
       return;
     }
@@ -136,42 +134,58 @@ function EditTaskModal({ task, onClose, onUpdateTask, projects = [] }) {
     
     setIsSubmitting(true);
     
-    // Validate inputs
-    if (!name || !description || !assignedToId || !dueDate || !status || !selectedProjectId) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Missing Information',
-        text: 'Please fill in all required fields',
-      });
-      
-      setIsSubmitting(false);
-      return;
+    // Validate inputs based on role
+    if (currentUser.role === 'admin') {
+      if (!name || !description || !assignedToId || !dueDate || !status || !selectedProjectId) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Missing Information',
+          text: 'Please fill in all required fields',
+          background: isDarkMode ? '#1f2937' : '#ffffff',
+          color: isDarkMode ? '#f9fafb' : '#111827'
+        });
+        
+        setIsSubmitting(false);
+        return;
+      }
+    } else {
+      // For students, only validate fields they can edit
+      if (!description || !status) {
+        Swal.fire({
+          icon: 'error',
+          title: 'Missing Information',
+          text: 'Please fill in all required fields',
+          background: isDarkMode ? '#1f2937' : '#ffffff',
+          color: isDarkMode ? '#f9fafb' : '#111827'
+        });
+        
+        setIsSubmitting(false);
+        return;
+      }
     }
 
-    // Validate due date
-    if (!validateDueDate(dueDate)) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Invalid Due Date',
-        text: 'Task due date cannot be after project end date.',
-      });
-      
-      setIsSubmitting(false);
-      return;
+    // Create updated task object - Only include fields that the current user role can update
+    let updatedTask = {};
+    
+    if (currentUser.role === 'admin') {
+      updatedTask = {
+        name,
+        description,
+        projectId: selectedProjectId,
+        assignedTo: assignedToId,
+        dueDate,
+        status
+      };
+    } else {
+      // Students can only update status and description
+      updatedTask = {
+        description,
+        status
+      };
     }
-
-    // Create updated task object
-    const updatedTask = {
-      name,
-      description,
-      projectId: selectedProjectId,
-      assignedTo: assignedToId,
-      dueDate,
-      status
-    };
     
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
       
       if (!token) {
         throw new Error('No authentication token found');
@@ -197,7 +211,9 @@ function EditTaskModal({ task, onClose, onUpdateTask, projects = [] }) {
         title: 'Task Updated',
         text: 'The task has been successfully updated',
         timer: 1500,
-        showConfirmButton: false
+        showConfirmButton: false,
+        background: isDarkMode ? '#1f2937' : '#ffffff',
+        color: isDarkMode ? '#f9fafb' : '#111827'
       });
     } catch (error) {
       console.error('Error updating task:', error.response?.data || error.message);
@@ -206,6 +222,8 @@ function EditTaskModal({ task, onClose, onUpdateTask, projects = [] }) {
         icon: 'error',
         title: 'Error',
         text: error.response?.data?.message || 'Failed to update task. Please try again.',
+        background: isDarkMode ? '#1f2937' : '#ffffff',
+        color: isDarkMode ? '#f9fafb' : '#111827'
       });
       
       setIsSubmitting(false);
@@ -217,12 +235,14 @@ function EditTaskModal({ task, onClose, onUpdateTask, projects = [] }) {
   
   return (
     <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 rounded-lg w-full max-w-md">
-        <div className="flex justify-between items-center p-6 border-b border-gray-700">
-          <h2 className="text-2xl text-blue-400 font-bold">Edit Task</h2>
+      <div className="bg-gray-900 dark:bg-gray-800 rounded-lg w-full max-w-md shadow-xl transition-all duration-300">
+        <div className="flex justify-between items-center p-6 border-b border-gray-700 dark:border-gray-700">
+          <h2 className="text-2xl text-blue-400 dark:text-blue-400 font-bold transition-all duration-300">
+            Update Task
+          </h2>
           <button 
             onClick={onClose}
-            className="text-gray-400 hover:text-white text-2xl"
+            className="text-gray-400 hover:text-gray-200 dark:hover:text-white text-2xl transition-all duration-300"
           >
             &times;
           </button>
@@ -230,18 +250,20 @@ function EditTaskModal({ task, onClose, onUpdateTask, projects = [] }) {
         
         {loading ? (
           <div className="p-6 text-center">
-            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
-            <p className="mt-4 text-gray-300">Loading...</p>
+            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-blue-600 dark:border-blue-400 mx-auto transition-all duration-300"></div>
+            <p className="mt-4 text-gray-300 dark:text-gray-300 transition-all duration-300">Loading...</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="p-6">
+            {/* Project Title - Show for everyone but only admin can edit */}
             <div className="mb-4">
-              <label className="block mb-2 text-gray-300">Project Title:</label>
+              <label className="block mb-2 text-gray-300 dark:text-gray-300 transition-all duration-300">Project Title:</label>
               <select 
-                className="w-full p-2 bg-gray-700 border border-gray-600 rounded focus:outline-none focus:border-blue-500"
+                className="w-full p-2 bg-gray-700 dark:bg-gray-700 border border-gray-600 dark:border-gray-600 rounded text-white dark:text-white focus:outline-none focus:border-blue-500 transition-all duration-300"
                 value={selectedProjectId}
                 onChange={handleProjectChange}
                 required
+                disabled={currentUser.role !== 'admin'} // Only admin can change project
               >
                 {projects.length > 0 ? (
                   <>
@@ -261,55 +283,67 @@ function EditTaskModal({ task, onClose, onUpdateTask, projects = [] }) {
                   </option>
                 )}
               </select>
-              {selectedProjectId && !projects.some(p => p._id.toString() === selectedProjectId.toString()) && (
-                <p className="text-yellow-400 text-sm mt-1">
-                  Current project: ID {selectedProjectId.substring(0, 6)}...
+              {currentUser.role !== 'admin' && (
+                <p className="text-yellow-600 dark:text-yellow-400 text-sm mt-1 transition-all duration-300">
+                  Only administrators can change the project assignment
                 </p>
               )}
             </div>
             
+            {/* Task Name - Show for everyone but only admin can edit */}
             <div className="mb-4">
-              <label className="block mb-2 text-gray-300">Task Name:</label>
+              <label className="block mb-2 text-gray-300 dark:text-gray-300 transition-all duration-300">Task Name:</label>
               <input 
                 type="text" 
-                className="w-full p-2 bg-gray-700 border border-gray-600 rounded focus:outline-none focus:border-blue-500"
+                className="w-full p-2 bg-gray-700 dark:bg-gray-700 border border-gray-600 dark:border-gray-600 rounded text-white dark:text-white focus:outline-none focus:border-blue-500 transition-all duration-300"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
+                disabled={currentUser.role !== 'admin'} // Only admin can change name
               />
+              {currentUser.role !== 'admin' && (
+                <p className="text-yellow-600 dark:text-yellow-400 text-sm mt-1 transition-all duration-300">
+                  Only administrators can change the task name
+                </p>
+              )}
             </div>
             
+            {/* Description - Editable for everyone */}
             <div className="mb-4">
-              <label className="block mb-2 text-gray-300">Description:</label>
+              <label className="block mb-2 text-gray-300 dark:text-gray-300 transition-all duration-300">Description:</label>
               <textarea 
-                className="w-full p-2 bg-gray-700 border border-gray-600 rounded focus:outline-none focus:border-blue-500 h-24"
+                className="w-full p-2 bg-gray-700 dark:bg-gray-700 border border-gray-600 dark:border-gray-600 rounded text-white dark:text-white focus:outline-none focus:border-blue-500 h-24 transition-all duration-300"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 required
               ></textarea>
             </div>
             
-            <div className="mb-4">
-              <label className="block mb-2 text-gray-300">Assigned Student:</label>
-              <select 
-                className="w-full p-2 bg-gray-700 border border-gray-600 rounded focus:outline-none focus:border-blue-500"
-                value={assignedToId}
-                onChange={(e) => setAssignedToId(e.target.value)}
-                required
-              >
-                <option value="">Select a student</option>
-                {studentOptions.map(student => (
-                  <option key={student._id} value={student._id}>
-                    {student.username}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {/* Student Assignment - Only visible for admins */}
+            {currentUser.role === 'admin' && (
+              <div className="mb-4">
+                <label className="block mb-2 text-gray-300 dark:text-gray-300 transition-all duration-300">Assigned Student:</label>
+                <select 
+                  className="w-full p-2 bg-gray-700 dark:bg-gray-700 border border-gray-600 dark:border-gray-600 rounded text-white dark:text-white focus:outline-none focus:border-blue-500 transition-all duration-300"
+                  value={assignedToId}
+                  onChange={(e) => setAssignedToId(e.target.value)}
+                  required
+                >
+                  <option value="">Select a student</option>
+                  {studentOptions.map(student => (
+                    <option key={student._id} value={student._id}>
+                      {student.username}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             
+            {/* Status - Editable for everyone */}
             <div className="mb-4">
-              <label className="block mb-2 text-gray-300">Status:</label>
+              <label className="block mb-2 text-gray-300 dark:text-gray-300 transition-all duration-300">Status:</label>
               <select 
-                className="w-full p-2 bg-gray-700 border border-gray-600 rounded focus:outline-none focus:border-blue-500"
+                className="w-full p-2 bg-gray-700 dark:bg-gray-700 border border-gray-600 dark:border-gray-600 rounded text-white dark:text-white focus:outline-none focus:border-blue-500 transition-all duration-300"
                 value={status}
                 onChange={(e) => setStatus(e.target.value)}
                 required
@@ -322,28 +356,36 @@ function EditTaskModal({ task, onClose, onUpdateTask, projects = [] }) {
               </select>
             </div>
             
+            {/* Due Date - Show for everyone but only admin can edit */}
             <div className="mb-6">
-              <label className="block mb-2 text-gray-300">Due Date:</label>
+              <label className="block mb-2 text-gray-300 dark:text-gray-300 transition-all duration-300">Due Date:</label>
               <input 
                 type="date" 
-                className="w-full p-2 bg-gray-700 border border-gray-600 rounded focus:outline-none focus:border-blue-500"
+                className="w-full p-2 bg-gray-700 dark:bg-gray-700 border border-gray-600 dark:border-gray-600 rounded text-white dark:text-white focus:outline-none focus:border-blue-500 transition-all duration-300"
                 value={dueDate}
                 onChange={handleDueDateChange}
                 required
+                disabled={currentUser.role !== 'admin'} // Only admin can change due date
                 max={projectEndDate ? formatDate(projectEndDate) : ''}
               />
               {projectEndDate && (
-                <p className="mt-1 text-xs text-gray-400">
+                <p className="mt-1 text-xs text-gray-400 dark:text-gray-400 transition-all duration-300">
                   Project end date: {formatDate(projectEndDate)}
+                </p>
+              )}
+              {currentUser.role !== 'admin' && (
+                <p className="text-yellow-600 dark:text-yellow-400 text-sm mt-1 transition-all duration-300">
+                  Only administrators can change the due date
                 </p>
               )}
             </div>
             
             <button 
               type="submit" 
-              className="w-full p-3 bg-green-600 text-white rounded hover:bg-green-700 focus:outline-none"
+              className="w-full p-3 bg-green-600 hover:bg-green-700 dark:bg-green-500 dark:hover:bg-green-600 text-white rounded focus:outline-none transition-all duration-300"
+              disabled={isSubmitting}
             >
-              Update Task
+              {isSubmitting ? 'Updating...' : 'Update Task'}
             </button>
           </form>
         )}

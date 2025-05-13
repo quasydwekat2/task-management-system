@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import Sidebar from '../common/Sidebar';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import ProjectCard from './ProjectCard';
 import ProjectDetails from './ProjectDetails';
 import AddProjectModal from './AddProjectModal';
@@ -9,6 +10,7 @@ import Swal from 'sweetalert2';
 
 function ProjectsPage() {
   const { currentUser } = useAuth();
+  const { isDarkMode } = useTheme();
   const [projects, setProjects] = useState([]);
   const [filteredProjects, setFilteredProjects] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -42,6 +44,8 @@ function ProjectsPage() {
         icon: 'error',
         title: 'Error',
         text: 'Failed to load projects. Please try again.',
+        background: isDarkMode ? '#1f2937' : '#ffffff',
+        color: isDarkMode ? '#f9fafb' : '#111827'
       });
     } finally {
       setLoading(false);
@@ -87,7 +91,9 @@ function ProjectsPage() {
         title: 'Project Added',
         text: 'The project has been successfully created',
         timer: 1500,
-        showConfirmButton: false
+        showConfirmButton: false,
+        background: isDarkMode ? '#1f2937' : '#ffffff',
+        color: isDarkMode ? '#f9fafb' : '#111827'
       });
     } catch (error) {
       console.error('Error adding project:', error);
@@ -95,8 +101,59 @@ function ProjectsPage() {
         icon: 'error',
         title: 'Error',
         text: 'Failed to add project. Please try again.',
+        background: isDarkMode ? '#1f2937' : '#ffffff',
+        color: isDarkMode ? '#f9fafb' : '#111827'
       });
     }
+  };
+
+  // New function to handle project deletion
+  const handleDeleteProject = async (projectId) => {
+    Swal.fire({
+      title: 'Delete Project',
+      text: 'Are you sure you want to delete this project? All related tasks will be deleted automatically.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: isDarkMode ? '#3085d6' : '#2563eb',
+      cancelButtonColor: isDarkMode ? '#d33' : '#dc2626',
+      confirmButtonText: 'Yes, delete it!',
+      background: isDarkMode ? '#1f2937' : '#ffffff',
+      color: isDarkMode ? '#f9fafb' : '#111827'
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        try {
+          const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+          await axios.delete(`http://localhost:5000/api/projects/${projectId}`, {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          });
+          
+          // Update local state
+          setProjects(projects.filter(project => project._id !== projectId));
+          setFilteredProjects(filteredProjects.filter(project => project._id !== projectId));
+          
+          Swal.fire({
+            icon: 'success',
+            title: 'Deleted!',
+            text: 'The project and all related tasks have been deleted.',
+            timer: 1500,
+            showConfirmButton: false,
+            background: isDarkMode ? '#1f2937' : '#ffffff',
+            color: isDarkMode ? '#f9fafb' : '#111827'
+          });
+        } catch (error) {
+          console.error('Error deleting project:', error);
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Failed to delete project. Please try again.',
+            background: isDarkMode ? '#1f2937' : '#ffffff',
+            color: isDarkMode ? '#f9fafb' : '#111827'
+          });
+        }
+      }
+    });
   };
 
   if (loading) {
@@ -161,6 +218,7 @@ function ProjectsPage() {
                   key={project._id} 
                   project={project} 
                   onClick={() => handleProjectClick(project)}
+                  onDelete={handleDeleteProject}
                 />
               ))
             ) : (

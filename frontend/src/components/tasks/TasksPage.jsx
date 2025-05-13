@@ -1,6 +1,4 @@
 
-
-
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import Sidebar from '../common/Sidebar';
@@ -31,9 +29,9 @@ function TasksPage() {
   const fetchTasksAndProjects = async () => {
     try {
       setLoading(true);
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
       
-      // Fetch projects first
+      // Fetch projects first - different endpoints for admin/student
       const projectsEndpoint = currentUser.role === 'admin' 
         ? 'http://localhost:5000/api/projects' 
         : `http://localhost:5000/api/projects/student/${currentUser._id}`;
@@ -45,7 +43,7 @@ function TasksPage() {
       });
       setProjects(projectsRes.data);
       
-      // Then fetch tasks
+      // Then fetch tasks - different endpoints for admin/student
       const tasksEndpoint = currentUser.role === 'admin' 
         ? 'http://localhost:5000/api/tasks' 
         : `http://localhost:5000/api/tasks/student/${currentUser._id}`;
@@ -102,10 +100,8 @@ function TasksPage() {
   };
 
   const handleTaskClick = (task) => {
-    if (currentUser.role === 'admin') {
-      setSelectedTask(task);
-      setShowEditTaskModal(true);
-    }
+    setSelectedTask(task);
+    setShowEditTaskModal(true);
   };
 
   const handleUpdateTask = (updatedTask) => {
@@ -113,10 +109,21 @@ function TasksPage() {
     setRefreshKey(prev => prev + 1);
   };
 
-  // New function to handle task deletion
+  // Task deletion function - Only for admin
   const handleDeleteTask = async (e, taskId) => {
     // Stop event propagation to prevent task row click
     e.stopPropagation();
+    
+    if (currentUser.role !== 'admin') {
+      Swal.fire({
+        icon: 'error',
+        title: 'Access Denied',
+        text: 'Only administrators can delete tasks.',
+        background: isDarkMode ? '#1f2937' : '#ffffff',
+        color: isDarkMode ? '#f9fafb' : '#111827'
+      });
+      return;
+    }
     
     // Show confirmation dialog
     Swal.fire({
@@ -132,7 +139,7 @@ function TasksPage() {
     }).then(async (result) => {
       if (result.isConfirmed) {
         try {
-          const token = localStorage.getItem('token');
+          const token = localStorage.getItem('token') || sessionStorage.getItem('token');
           
           // Call API to delete task
           await axios.delete(`http://localhost:5000/api/tasks/${taskId}`, {
@@ -168,6 +175,50 @@ function TasksPage() {
     });
   };
 
+  // Update task status with live progress update
+  const handleStatusChange = async (taskId, newStatus) => {
+    try {
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      await axios.patch(`http://localhost:5000/api/tasks/${taskId}/status`, 
+        { status: newStatus },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+      
+      // Update local state immediately for feedback
+      setTasks(prevTasks => 
+        prevTasks.map(task => 
+          task._id === taskId ? { ...task, status: newStatus } : task
+        )
+      );
+      
+      // Also refresh all data to get updated project progress
+      setRefreshKey(prev => prev + 1);
+      
+      Swal.fire({
+        icon: 'success',
+        title: 'Status Updated',
+        text: 'Task status has been updated successfully',
+        timer: 1500,
+        showConfirmButton: false,
+        background: isDarkMode ? '#1f2937' : '#ffffff',
+        color: isDarkMode ? '#f9fafb' : '#111827'
+      });
+    } catch (error) {
+      console.error('Error updating task status:', error);
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Failed to update task status',
+        background: isDarkMode ? '#1f2937' : '#ffffff',
+        color: isDarkMode ? '#f9fafb' : '#111827'
+      });
+    }
+  };
+
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
@@ -193,17 +244,15 @@ function TasksPage() {
       <div className="flex-1 p-4 md:p-6 lg:p-8 mt-14 lg:mt-0">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
           <h1 className="text-2xl md:text-3xl text-gray-900 dark:text-white font-bold mb-4 md:mb-0 transition-all duration-300">
-            Tasks Overview
+            {currentUser.role === 'admin' ? 'Tasks Overview' : 'Your Tasks'}
           </h1>
           
-          {currentUser.role === 'admin' && (
-            <button
-              onClick={() => setShowAddTaskModal(true)}
-              className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white px-4 py-2 rounded transition-all duration-300"
-            >
-              Create a New Task
-            </button>
-          )}
+          <button
+            onClick={() => setShowAddTaskModal(true)}
+            className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white px-4 py-2 rounded transition-all duration-300"
+          >
+            Create a New Task
+          </button>
         </div>
         
         {/* Status filter */}

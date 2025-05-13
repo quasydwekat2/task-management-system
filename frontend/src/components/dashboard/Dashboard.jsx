@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import Sidebar from '../common/Sidebar';
@@ -32,7 +33,8 @@ function Dashboard() {
     projects: 0,
     students: 0,
     tasks: 0,
-    finishedProjects: 0
+    finishedProjects: 0,
+    completedTasks: 0
   });
   const [currentTime, setCurrentTime] = useState(new Date());
   const [loading, setLoading] = useState(true);
@@ -41,7 +43,13 @@ function Dashboard() {
     const fetchStats = async () => {
       try {
         const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-        const res = await axios.get('http://localhost:5000/api/dashboard/stats', {
+        
+        // Different endpoint for admin vs student
+        const endpoint = currentUser.role === 'admin' 
+          ? 'http://localhost:5000/api/dashboard/stats'
+          : `http://localhost:5000/api/dashboard/stats/student/${currentUser._id}`;
+          
+        const res = await axios.get(endpoint, {
           headers: {
             Authorization: `Bearer ${token}`
           }
@@ -53,6 +61,8 @@ function Dashboard() {
           icon: 'error',
           title: 'Error',
           text: 'Failed to fetch dashboard statistics',
+          background: isDarkMode ? '#1f2937' : '#ffffff',
+          color: isDarkMode ? '#f9fafb' : '#111827'
         });
       } finally {
         setLoading(false);
@@ -67,7 +77,7 @@ function Dashboard() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [currentUser, isDarkMode]);
 
   // Format date to show day, date and time with seconds
   const formatDate = (date) => {
@@ -94,7 +104,7 @@ function Dashboard() {
     return `${formattedDate} at ${formattedTime}`;
   };
 
-  // Chart data
+  // Chart data - Only for admin
   const chartData = {
     labels: ['Projects', 'Students', 'Tasks', 'Completed Projects'],
     datasets: [
@@ -120,7 +130,7 @@ function Dashboard() {
 
   // Chart options - dynamically set based on theme
   const chartOptions = {
-    maintainAspectRatio: false,
+    maintainAspectRatio: false, // Important to allow chart to fill container
     responsive: true,
     plugins: {
       legend: {
@@ -175,68 +185,128 @@ function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="flex items-center justify-center min-h-screen bg-white dark:bg-gray-900 transition-all duration-300">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600 dark:border-blue-400 transition-all duration-300"></div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col lg:flex-row bg-gray-100 dark:bg-gray-900 min-h-screen">
+    <div className="flex flex-col lg:flex-row bg-white dark:bg-gray-900 min-h-screen transition-all duration-300">
       <Sidebar />
-      <div className="flex-1 p-4 md:p-6 lg:p-8 mt-14 lg:mt-0"> {/* Added top margin for mobile header */}
+      {/* Change the main container to flex-col with h-screen */}
+      <div className="flex-1 flex flex-col p-4 md:p-6 lg:p-8 mt-14 lg:mt-0 lg:h-screen"> 
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-          <h1 className="text-2xl md:text-3xl text-blue-600 dark:text-blue-500 font-bold mb-4 md:mb-0">
-            Task Management Dashboard
+          <h1 className="text-2xl md:text-3xl text-blue-600 dark:text-blue-500 font-bold mb-4 md:mb-0 transition-all duration-300">
+            {currentUser.role === 'admin' ? 'Task Management Dashboard' : 'Your Dashboard'}
           </h1>
-          <div className="text-gray-600 dark:text-gray-300 text-lg md:text-xl">
+          <div className="text-gray-600 dark:text-gray-300 text-lg md:text-xl transition-all duration-300">
             {formatDate(currentTime)}
           </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-md transition-colors duration-200">
-            <h2 className="text-center text-lg font-semibold mb-2 text-gray-700 dark:text-gray-200">
-              Projects
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-md transition-all duration-300">
+            <h2 className="text-center text-lg font-semibold mb-2 text-gray-700 dark:text-gray-200 transition-all duration-300">
+              {currentUser.role === 'admin' ? 'Projects' : 'Your Projects'}
             </h2>
-            <p className="text-center text-3xl md:text-4xl font-bold text-blue-600 dark:text-blue-500">
+            <p className="text-center text-3xl md:text-4xl font-bold text-blue-600 dark:text-blue-500 transition-all duration-300">
               {stats.projects}
             </p>
           </div>
           
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-md transition-colors duration-200">
-            <h2 className="text-center text-lg font-semibold mb-2 text-gray-700 dark:text-gray-200">
-              Students
-            </h2>
-            <p className="text-center text-3xl md:text-4xl font-bold text-yellow-600 dark:text-yellow-500">
-              {stats.students}
-            </p>
-          </div>
+          {currentUser.role === 'admin' && (
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-md transition-all duration-300">
+              <h2 className="text-center text-lg font-semibold mb-2 text-gray-700 dark:text-gray-200 transition-all duration-300">
+                Students
+              </h2>
+              <p className="text-center text-3xl md:text-4xl font-bold text-yellow-600 dark:text-yellow-500 transition-all duration-300">
+                {stats.students}
+              </p>
+            </div>
+          )}
           
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-md transition-colors duration-200">
-            <h2 className="text-center text-lg font-semibold mb-2 text-gray-700 dark:text-gray-200">
-              Tasks
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-md transition-all duration-300">
+            <h2 className="text-center text-lg font-semibold mb-2 text-gray-700 dark:text-gray-200 transition-all duration-300">
+              {currentUser.role === 'admin' ? 'Tasks' : 'Your Tasks'}
             </h2>
-            <p className="text-center text-3xl md:text-4xl font-bold text-orange-600 dark:text-orange-500">
+            <p className="text-center text-3xl md:text-4xl font-bold text-orange-600 dark:text-orange-500 transition-all duration-300">
               {stats.tasks}
             </p>
           </div>
           
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-md transition-colors duration-200">
-            <h2 className="text-center text-lg font-semibold mb-2 text-gray-700 dark:text-gray-200">
-              Completed Projects
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-5 shadow-md transition-all duration-300">
+            <h2 className="text-center text-lg font-semibold mb-2 text-gray-700 dark:text-gray-200 transition-all duration-300">
+              {currentUser.role === 'admin' ? 'Completed Projects' : 'Your Completed Projects'}
             </h2>
-            <p className="text-center text-3xl md:text-4xl font-bold text-purple-600 dark:text-purple-500">
+            <p className="text-center text-3xl md:text-4xl font-bold text-purple-600 dark:text-purple-500 transition-all duration-300">
               {stats.finishedProjects}
             </p>
           </div>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-4 md:p-6 shadow-md transition-colors duration-200">
-          <div className="h-52 md:h-64 lg:h-72">
-            <Bar data={chartData} options={chartOptions} />
+        {/* Chart - only show for admin - make it take remaining height */}
+        {currentUser.role === 'admin' ? (
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-4 md:p-6 shadow-md flex-1 flex flex-col min-h-0 transition-all duration-300">
+            <div className="flex-1 w-full h-full">
+              <Bar 
+                data={chartData} 
+                options={chartOptions}
+              />
+            </div>
           </div>
-        </div>
+        ) : (
+          /* Student-specific content instead of chart */
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md transition-all duration-300">
+            <h2 className="text-xl font-semibold mb-4 text-gray-700 dark:text-gray-200 transition-all duration-300">
+              Your Task Progress
+            </h2>
+            
+            <div className="mb-6">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-gray-600 dark:text-gray-400 transition-all duration-300">Task Completion Rate</span>
+                <span className="text-gray-800 dark:text-gray-200 font-medium transition-all duration-300">
+                  {stats.tasks > 0 ? Math.round((stats.completedTasks / stats.tasks) * 100) : 0}%
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 transition-all duration-300">
+                <div 
+                  className="bg-green-500 dark:bg-green-400 h-2.5 rounded-full transition-all duration-300" 
+                  style={{ width: `${stats.tasks > 0 ? (stats.completedTasks / stats.tasks) * 100 : 0}%` }}
+                ></div>
+              </div>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 transition-all duration-300">
+                {stats.completedTasks || 0} out of {stats.tasks} tasks completed
+              </p>
+            </div>
+            
+            <div className="bg-gray-50 dark:bg-gray-750 p-4 rounded-lg border border-gray-200 dark:border-gray-700 transition-all duration-300">
+              <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300 mb-3 transition-all duration-300">
+                Quick Tips:
+              </h3>
+              <ul className="text-gray-600 dark:text-gray-400 space-y-2 transition-all duration-300">
+                <li className="flex items-start">
+                  <svg className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>Update your task status regularly to keep your project progress accurate.</span>
+                </li>
+                <li className="flex items-start">
+                  <svg className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>Use the chat feature to communicate with your instructor if you need help.</span>
+                </li>
+                <li className="flex items-start">
+                  <svg className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>Check task due dates to prioritize your workload effectively.</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
