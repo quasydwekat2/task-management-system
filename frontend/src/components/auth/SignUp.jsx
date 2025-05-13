@@ -24,7 +24,9 @@ function SignUp() {
       Swal.fire({
         icon: 'warning',
         title: 'Missing Information',
-        text: 'Username and Password are required.'
+        text: 'Username and Password are required.',
+        background: '#1e1e2f',
+        color: '#ffffff',
       });
       setLoading(false);
       return;
@@ -34,7 +36,9 @@ function SignUp() {
       Swal.fire({
         icon: 'error',
         title: 'Missing University ID',
-        text: 'Please enter your University ID.'
+        text: 'Please enter your University ID.',
+        background: '#1e1e2f',
+        color: '#ffffff',
       });
       setLoading(false);
       return;
@@ -44,7 +48,7 @@ function SignUp() {
       username: trimmedUsername,
       password: trimmedPassword,
       role: isStudent ? 'student' : 'admin',
-      ...(isStudent && { universityId: trimmedUniversityId })
+      ...(isStudent && { universityId: trimmedUniversityId }),
     };
 
     try {
@@ -53,13 +57,18 @@ function SignUp() {
         icon: 'success',
         title: 'Account Created',
         text: 'You can now sign in!',
-        confirmButtonText: 'Continue'
+        background: '#1e1e2f',
+        color: '#ffffff',
+        confirmButtonColor: '#38bdf8',
+        confirmButtonText: 'Continue',
       }).then(() => navigate('/signin'));
     } catch (err) {
       Swal.fire({
         icon: 'error',
         title: 'Sign Up Failed',
-        text: err.message || 'Something went wrong. Please try again.'
+        text: err.message || 'Something went wrong. Please try again.',
+        background: '#1e1e2f',
+        color: '#ffffff',
       });
     } finally {
       setLoading(false);
@@ -67,8 +76,8 @@ function SignUp() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-900 px-4">
-      <div className="w-full max-w-md p-8 bg-gray-800 rounded-lg shadow-lg">
+    <div className="flex items-center justify-center min-h-screen bg-[#0f172a] px-4">
+      <div className="w-full max-w-md p-8 bg-[#1e293b] rounded-lg shadow-lg border border-[#334155]">
         <h1 className="mb-8 text-4xl font-bold text-white text-center">Sign Up</h1>
 
         <form onSubmit={handleSubmit}>
@@ -77,7 +86,7 @@ function SignUp() {
             <input
               id="username"
               type="text"
-              className="w-full p-3 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:border-blue-500"
+              className="w-full p-3 bg-[#0f172a] border border-[#334155] rounded text-white focus:outline-none focus:border-[#38bdf8]"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
@@ -89,7 +98,7 @@ function SignUp() {
             <input
               id="password"
               type="password"
-              className="w-full p-3 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:border-blue-500"
+              className="w-full p-3 bg-[#0f172a] border border-[#334155] rounded text-white focus:outline-none focus:border-[#38bdf8]"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -100,7 +109,7 @@ function SignUp() {
             <input
               id="isStudent"
               type="checkbox"
-              className="w-5 h-5 mr-2"
+              className="w-5 h-5 mr-2 accent-[#38bdf8]"
               checked={isStudent}
               onChange={(e) => setIsStudent(e.target.checked)}
             />
@@ -113,7 +122,7 @@ function SignUp() {
               <input
                 id="universityId"
                 type="text"
-                className="w-full p-3 bg-gray-700 border border-gray-600 rounded text-white focus:outline-none focus:border-blue-500"
+                className="w-full p-3 bg-[#0f172a] border border-[#334155] rounded text-white focus:outline-none focus:border-[#38bdf8]"
                 value={universityId}
                 onChange={(e) => setUniversityId(e.target.value)}
                 required
@@ -125,14 +134,14 @@ function SignUp() {
             type="submit"
             disabled={loading}
             className={`w-full p-3 text-white rounded font-semibold transition duration-200 
-              ${loading ? 'bg-green-800 opacity-70 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}`}
+              ${loading ? 'bg-[#15803d] opacity-70 cursor-not-allowed' : 'bg-[#22c55e] hover:bg-[#15803d]'}`}
           >
             {loading ? 'Creating Account...' : 'Sign Up'}
           </button>
         </form>
 
         <div className="mt-4 text-center">
-          <Link to="/signin" className="text-blue-400 hover:text-blue-300">
+          <Link to="/signin" className="text-[#38bdf8] hover:text-[#0ea5e9]">
             Already have an account? Sign In
           </Link>
         </div>
