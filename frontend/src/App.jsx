@@ -7,11 +7,17 @@ import ProjectsPage from './components/projects/ProjectsPage';
 import TasksPage from './components/tasks/TasksPage';
 import ChatPage from './components/chat/ChatPage';
 import ProtectedRoute from './components/common/ProtectedRoute';
+import { ThemeProvider } from './contexts/ThemeContext';
+
 
 function App() {
   return (
     <AuthProvider>
-      <Router>
+
+      <ThemeProvider>
+        
+
+       <Router>
         <div className="min-h-screen bg-gray-900 text-white">
           <Routes>
             <Route path="/signin" element={<SignIn />} />
@@ -39,7 +45,11 @@ function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </div>
-      </Router>
+       </Router>
+
+      </ThemeProvider>
+
+
     </AuthProvider>
   );
 }
