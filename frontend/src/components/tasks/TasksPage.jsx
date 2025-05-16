@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import Sidebar from '../common/Sidebar';
@@ -92,6 +91,22 @@ function TasksPage() {
     const project = projects.find(p => p._id.toString() === projectId);
     
     return project ? project.title : 'Unknown Project';
+  };
+
+  // Helper function to get assigned student name
+  const getAssignedStudentName = (task) => {
+    // If assignedTo is an object with username
+    if (task.assignedTo && typeof task.assignedTo === 'object' && task.assignedTo.username) {
+      return task.assignedTo.username;
+    }
+    // If assignedTo is the current user's ID (string or object)
+    if (
+      (typeof task.assignedTo === 'string' && task.assignedTo === currentUser._id) ||
+      (typeof task.assignedTo === 'object' && task.assignedTo?._id === currentUser._id)
+    ) {
+      return currentUser.username;
+    }
+    return 'Unassigned';
   };
 
   const handleAddTask = (newTask) => {
@@ -303,7 +318,7 @@ function TasksPage() {
                       <td className="px-4 py-3 text-gray-900 dark:text-gray-200 transition-all duration-300">{getProjectTitle(task)}</td>
                       <td className="px-4 py-3 text-gray-900 dark:text-gray-200 transition-all duration-300">{task.name}</td>
                       <td className="px-4 py-3 text-gray-900 dark:text-gray-200 transition-all duration-300">{task.description}</td>
-                      <td className="px-4 py-3 text-gray-900 dark:text-gray-200 transition-all duration-300">{task.assignedTo?.username || 'Unassigned'}</td>
+                      <td className="px-4 py-3 text-gray-900 dark:text-gray-200 transition-all duration-300">{getAssignedStudentName(task)}</td>
                       <td className="px-4 py-3">
                         <StatusBadge status={task.status} />
                       </td>
