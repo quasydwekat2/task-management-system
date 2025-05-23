@@ -1,0 +1,143 @@
+type User {
+  _id: ID!
+  username: String!
+  role: String!
+  universityId: String
+  createdAt: String!
+}
+
+type Project {
+  _id: ID!
+  title: String!
+  description: String!
+  students: [User!]!
+  category: String!
+  startDate: String!
+  endDate: String!
+  status: String!
+  progress: Int!
+  createdAt: String!
+}
+
+type Task {
+  _id: ID!
+  name: String!
+  description: String!
+  projectId: Project!
+  assignedTo: User!
+  status: String!
+  dueDate: String!
+  createdAt: String!
+}
+
+type Message {
+  _id: ID!
+  sender: User!
+  recipient: User!
+  content: String!
+  timestamp: String!
+  read: Boolean!
+}
+
+type AuthPayload {
+  token: String!
+  user: User!
+}
+
+type DashboardStats {
+  projects: Int!
+  students: Int!
+  tasks: Int!
+  finishedProjects: Int!
+}
+
+type StudentDashboardStats {
+  projects: Int!
+  tasks: Int!
+  completedTasks: Int!
+  finishedProjects: Int!
+}
+
+input UserInput {
+  username: String!
+  password: String!
+  role: String!
+  universityId: String
+}
+
+input ProjectInput {
+  title: String!
+  description: String!
+  students: [ID!]!
+  category: String!
+  startDate: String!
+  endDate: String!
+  status: String!
+}
+
+input TaskInput {
+  name: String!
+  description: String!
+  projectId: ID!
+  assignedTo: ID!
+  status: String!
+  dueDate: String!
+}
+
+input MessageInput {
+  content: String!
+  recipientId: ID!
+}
+
+type Query {
+  # User queries
+  me: User
+  user(id: ID!): User
+  users: [User!]!
+  students: [User!]!
+  admin: User
+
+  # Project queries
+  project(id: ID!): Project
+  projects: [Project!]!
+  studentProjects(studentId: ID!): [Project!]!
+
+  # Task queries
+  task(id: ID!): Task
+  tasks: [Task!]!
+  projectTasks(projectId: ID!): [Task!]!
+  studentTasks(studentId: ID!): [Task!]!
+
+  # Message queries
+  messages(userId: ID!): [Message!]!
+
+  # Dashboard queries
+  dashboardStats: DashboardStats!
+  studentDashboardStats(studentId: ID!): StudentDashboardStats!
+}
+
+type Mutation {
+  # Auth mutations
+  register(input: UserInput!): User!
+  login(username: String!, password: String!): AuthPayload!
+
+  # Project mutations
+  createProject(input: ProjectInput!): Project!
+  updateProject(id: ID!, input: ProjectInput!): Project!
+  updateProjectProgress(id: ID!, progress: Int!): Project!
+  deleteProject(id: ID!): Boolean!
+
+  # Task mutations
+  createTask(input: TaskInput!): Task!
+  updateTask(id: ID!, input: TaskInput!): Task!
+  updateTaskStatus(id: ID!, status: String!): Task!
+  deleteTask(id: ID!): Boolean!
+
+  # Message mutations
+  sendMessage(input: MessageInput!): Message!
+  markMessagesAsRead(senderId: ID!): Boolean!
+}
+
+type Subscription {
+  newMessage(userId: ID!): Message!
+}
